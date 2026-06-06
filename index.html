@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VR Mathematik</title>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-environment-component@1.3.1/dist/aframe-environment-component.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #ui-overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 999;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 16px;
+      border-radius: 10px;
+      max-width: 320px;
+    }
+    #ui-overlay input {
+      width: 100%;
+      padding: 6px;
+      margin-top: 6px;
+      border-radius: 4px;
+      border: none;
+      box-sizing: border-box;
+    }
+    #ui-overlay button {
+      margin-top: 10px;
+      width: 100%;
+      padding: 8px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    #ui-overlay button:hover {
+      background: #45a049;
+    }
+    #ergebnis {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #aef;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 2D UI Overlay -->
+  <div id="ui-overlay">
+    <h3 style="margin:0 0 10px 0;">🧮 VR Mathe</h3>
+
+    <label>Punkt 1 (x,y,z):</label>
+    <input type="text" id="punkt1" placeholder="z.B. 1,2,3" />
+
+    <label style="margin-top:8px;display:block;">Punkt 2 (x,y,z):</label>
+    <input type="text" id="punkt2" placeholder="z.B. 4,5,6" />
+
+    <label style="margin-top:8px;display:block;">Ebene (ax+by+cz=d):</label>
+    <input type="text" id="ebene" placeholder="z.B. 1,0,0,3" />
+
+    <button onclick="berechneUndZeige()">Berechnen & Anzeigen</button>
+
+    <div id="ergebnis"></div>
+  </div>
+
+  <!-- A-Frame VR Szene -->
+  <a-scene background="color: #1a1a2e">
+
+    <!-- Umgebung -->
+    <a-entity environment="preset: starry; groundColor: #111; grid: cross"></a-entity>
+
+    <!-- Kamera mit Teleport -->
+    <a-entity id="rig" position="0 0 5">
+      <a-camera id="kamera" wasd-controls="enabled: true" look-controls>
+        <a-cursor color="#ffffff" fuse="false"></a-cursor>
+      </a-camera>
+    </a-entity>
+
+    <!-- Koordinatensystem -->
+    <!-- X-Achse -->
+    <a-cylinder color="red"   radius="0.03" height="10" rotation="0 0 90" position="0 0 0"></a-cylinder>
+    <!-- Y-Achse -->
+    <a-cylinder color="green" radius="0.03" height="10" rotation="0 0 0"  position="0 0 0"></a-cylinder>
+    <!-- Z-Achse -->
+    <a-cylinder color="blue"  radius="0.03" height="10" rotation="90 0 0" position="0 0 0"></a-cylinder>
+
+    <!-- Achsenbeschriftungen -->
+    <a-text value="X" color="red"   position="5.2 0 0" align="center" scale="1.5 1.5 1.5"></a-text>
+    <a-text value="Y" color="green" position="0 5.2 0" align="center" scale="1.5 1.5 1.5"></a-text>
+    <a-text value="Z" color="blue"  position="0 0 5.2" align="center" scale="1.5 1.5 1.5"></a-text>
+
+    <!-- Dynamische Objekte werden hier eingefügt -->
+    <a-entity id="szene-container"></a-entity>
+
+  </a-scene>
+
+  <!-- Skripte -->
+  <script src="src/core/parser.js"></script>
+  <script src="src/core/berechnungen.js"></script>
+  <script src="src/core/points.js"></script>
+  <script src="src/core/geraden.js"></script>
+  <script src="src/core/ebenen.js"></script>
+  <script src="src/core/coordinateSystem.js"></script>
+  <script src="src/core/teleport.js"></script>
+  <script src="src/core/ui.js"></script>
+  <script src="src/ui/eingabePanel.js"></script>
+  <script src="src/ui/ergebnisPanel.js"></script>
+  <script src="src/main.js"></script>
+
+  <script>
+    function berechneUndZeige() {
+      const p1Input = document.getElementById('punkt1').value;
+      const p2Input = document.getElementById('punkt2').value;
+      const ebeneInput = document.getElementById('ebene').value;
+      const ergebnisDiv = document.getElementById('ergebnis');
+      const container = document.getElementById('szene-container');
+
+      // Container leeren
+      container.innerHTML = '';
+
+      let ausgabe = '';
+
+      try {
+        // Punkte parsen und anzeigen
+        if (p1Input.trim()) {
+          const p1 = parsePoint(p1Input);
+          zeigePoint(container, p1, 'yellow');
+          ausgabe += `✅ Punkt 1: (${p1.x}, ${p1.y}, ${p1.z})<br>`;
+        }
+        if (p2Input.trim()) {
+          const p2 = parsePoint(p2Input);
+          zeigePoint(container, p2, 'orange');
+          ausgabe += `✅ Punkt 2: (${p2.x}, ${p2.y}, ${p2.z})<br>`;
+        }
+
+        // Gerade zwischen Punkt 1 und 2
+        if (p1Input.trim() && p2Input.trim()) {
+          const p1 = parsePoint(p1Input);
+          const p2 = parsePoint(p2Input);
+          zeigeGerade(container, p1, p2, 'white');
+          const abstand = berechneAbstand(p1, p2);
+          ausgabe += `📏 Abstand: ${abstand.toFixed(3)}<br>`;
+        }
+
+        // Ebene anzeigen
+        if (ebeneInput.trim()) {
+          const eb = parseEbene(ebeneInput);
+          zeigeEbene(container, eb, '#88aaff');
+          ausgabe += `🟦 Ebene: ${eb.a}x + ${eb.b}y + ${eb.c}z = ${eb.d}<br>`;
+
+          // Schnittpunkt Gerade & Ebene
+          if (p1Input.trim() && p2Input.trim()) {
+            const p1 = parsePoint(p1Input);
+            const p2 = parsePoint(p2Input);
+            const schnitt = berechneSchnittGeradeMitEbene(p1, p2, eb);
+            if (schnitt) {
+              zeigePoint(container, schnitt, 'magenta');
+              ausgabe += `✂️ Schnittpunkt: (${schnitt.x.toFixed(2)}, ${schnitt.y.toFixed(2)}, ${schnitt.z.toFixed(2)})<br>`;
+            } else {
+              ausgabe += `⚠️ Keine Schnittpunkt (parallel)<br>`;
+            }
+          }
+        }
+
+      } catch(e) {
+        ausgabe = `❌ Fehler: ${e.message}`;
+      }
+
+      ergebnisDiv.innerHTML = ausgabe;
+    }
+  </script>
+
+</body>
+</html>
